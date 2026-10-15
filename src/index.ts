@@ -1,5 +1,5 @@
 /**
- * Public exports for `@clocklobster/square-sales`.
+ * Public exports for `@clocklobster/square-tx-import`.
  *
  * The ops script (`scripts/provision-webhooks.mjs`) is intentionally NOT
  * re-exported here — it is run by operators, never bundled into consumers.

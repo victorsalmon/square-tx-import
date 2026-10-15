@@ -16,7 +16,7 @@
  *   SQUARE_ACCESS_TOKEN  (required) app token for the target environment
  *   SQUARE_WEBHOOK_URL   (required) https notification endpoint
  *   SQUARE_ENVIRONMENT   `production` (default) or `sandbox`
- *   SQUARE_SUBSCRIPTION_NAME  subscription name (default `square-sales`)
+ *   SQUARE_SUBSCRIPTION_NAME  subscription name (default `square-tx-import`)
  *
  * Flags:
  *   --test        send a test event after create/update (default off)
@@ -37,7 +37,7 @@ const ROTATE_KEY = args.has('--rotate-key');
 const token = process.env.SQUARE_ACCESS_TOKEN;
 const notificationUrl = process.env.SQUARE_WEBHOOK_URL;
 const environmentName = (process.env.SQUARE_ENVIRONMENT ?? 'production').toLowerCase();
-const subscriptionName = process.env.SQUARE_SUBSCRIPTION_NAME ?? 'square-sales';
+const subscriptionName = process.env.SQUARE_SUBSCRIPTION_NAME ?? 'square-tx-import';
 
 if (!token) {
   console.error('Missing SQUARE_ACCESS_TOKEN');
@@ -87,7 +87,7 @@ try {
       );
     } else {
       const created = await client.webhooks.subscriptions.create({
-        idempotencyKey: `square-sales-${Date.now()}`,
+        idempotencyKey: `square-tx-import-${Date.now()}`,
         subscription: {
           name: subscriptionName,
           notificationUrl,

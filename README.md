@@ -1,4 +1,4 @@
-# `square-sales`
+# `square-tx-import`
 
 Import Square **sales** records for bookkeeping — and nothing else.
 
@@ -19,7 +19,7 @@ request `REPORTING_READ`), no MCP runtime code (dev-aid only). OAuth scopes:
 ## Installation
 
 ```bash
-npm install @clocklobster/square-sales
+npm install @clocklobster/square-tx-import
 ```
 
 Requires the [`square`](https://www.npmjs.com/package/square) SDK `^46.0.0`
@@ -31,7 +31,7 @@ Requires the [`square`](https://www.npmjs.com/package/square) SDK `^46.0.0`
 
 ```typescript
 import { SquareClient, SquareEnvironment } from 'square';
-import { importSalesWindow } from '@clocklobster/square-sales';
+import { importSalesWindow } from '@clocklobster/square-tx-import';
 
 const client = new SquareClient({
   token: process.env.SQUARE_ACCESS_TOKEN!,
@@ -72,7 +72,7 @@ const records = await importSalesWindow(
 ### Verify a webhook (freshness signal)
 
 ```typescript
-import { verifySquareWebhook, parseSquareWebhookEvent, webhookRefreshTarget } from '@clocklobster/square-sales';
+import { verifySquareWebhook, parseSquareWebhookEvent, webhookRefreshTarget } from '@clocklobster/square-tx-import';
 
 if (!verifySquareWebhook({ requestBody, signatureHeader, signatureKey, notificationUrl })) {
   return new Response('unauthorized', { status: 401 });

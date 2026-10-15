@@ -1,5 +1,5 @@
 /**
- * Shared types for `@clocklobster/square-sales`.
+ * Shared types for `@clocklobster/square-tx-import`.
  *
  * Scope: Square SALES records for bookkeeping ONLY. No Invoices API, no
  * Reporting API, no MCP runtime code.

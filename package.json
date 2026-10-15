@@ -1,5 +1,5 @@
 {
-  "name": "@clocklobster/square-sales",
+  "name": "@clocklobster/square-tx-import",
   "publishConfig": {
     "access": "public"
   },
@@ -46,12 +46,12 @@
   "author": "Victor Salmon",
   "repository": {
     "type": "git",
-    "url": "https://github.com/victorsalmon/square-sales.git"
+    "url": "https://github.com/victorsalmon/square-tx-import.git"
   },
   "bugs": {
-    "url": "https://github.com/victorsalmon/square-sales/issues"
+    "url": "https://github.com/victorsalmon/square-tx-import/issues"
   },
-  "homepage": "https://github.com/victorsalmon/square-sales#readme",
+  "homepage": "https://github.com/victorsalmon/square-tx-import#readme",
   "dependencies": {
     "square": "^46.0.0"
   },

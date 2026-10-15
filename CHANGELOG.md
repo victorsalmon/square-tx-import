@@ -28,4 +28,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only. The Invoices API and the Reporting API (analytics-shaped, ~15-minute
   staleness) are out of scope by design.
 
-[0.1.0]: https://github.com/victorsalmon/square-sales/releases/tag/v0.1.0
+[0.1.0]: https://github.com/victorsalmon/square-tx-import/releases/tag/v0.1.0
