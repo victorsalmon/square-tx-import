@@ -1,0 +1,66 @@
+{
+  "name": "@clocklobster/square-sales",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.0",
+  "description": "Import Square sales records for bookkeeping: Orders + Payments + Payouts adaption, webhook freshness signals, and Events-API missed-delivery backfill. No Invoices API, no Reporting API, no MCP runtime.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "scripts",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "provision:webhooks": "node scripts/provision-webhooks.mjs",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "square",
+    "sales",
+    "bookkeeping",
+    "payments",
+    "orders",
+    "payouts",
+    "webhooks",
+    "typescript"
+  ],
+  "author": "Victor Salmon",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/victorsalmon/square-sales.git"
+  },
+  "bugs": {
+    "url": "https://github.com/victorsalmon/square-sales/issues"
+  },
+  "homepage": "https://github.com/victorsalmon/square-sales#readme",
+  "dependencies": {
+    "square": "^46.0.0"
+  },
+  "devDependencies": {
+    "@fast-check/vitest": "^0.5.0",
+    "@types/node": "^26.6.5",
+    "fast-check": "^4.10.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}
