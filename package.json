@@ -46,7 +46,7 @@
   "author": "Victor Salmon",
   "repository": {
     "type": "git",
-    "url": "https://github.com/victorsalmon/square-tx-import.git"
+    "url": "git+https://github.com/victorsalmon/square-tx-import.git"
   },
   "bugs": {
     "url": "https://github.com/victorsalmon/square-tx-import/issues"
