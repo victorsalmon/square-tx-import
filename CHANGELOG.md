@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dev-sandbox readiness: `examples/sandbox-smoke.mjs` (env-only creds,
+  sandbox-enforced, read-only `SearchOrders` + `ListPayments` wiring check
+  over a small trailing window, projected-lines-only output) and
+  `docs/SANDBOX.md` (token locations, seed guidance, no-PII rule,
+  localhost webhook forwarding).
+
 ## [0.1.0] - 2026-10-15
 
 ### Added

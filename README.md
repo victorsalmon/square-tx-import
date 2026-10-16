@@ -85,6 +85,7 @@ Runnable examples (run `npm run build` first):
 
 - [`examples/verify-webhook.mjs`](./examples/verify-webhook.mjs) — offline signature round-trip.
 - [`examples/poll-import.mjs`](./examples/poll-import.mjs) — offline window import over fake ports.
+- [`examples/sandbox-smoke.mjs`](./examples/sandbox-smoke.mjs) — live sandbox wiring check (needs `SQUARE_ACCESS_TOKEN` + `SQUARE_ENVIRONMENT=sandbox` + `SQUARE_LOCATION_IDS`; refuses production). See [`docs/SANDBOX.md`](./docs/SANDBOX.md).
 
 Provision the webhook subscription (operator step):
 
@@ -108,6 +109,7 @@ SQUARE_ACCESS_TOKEN=... SQUARE_WEBHOOK_URL=https://you.example/hooks/square \
 ## Documentation
 
 - [`docs/OAUTH-SCOPES.md`](./docs/OAUTH-SCOPES.md) — the three scopes, and why Invoices / Reporting / MCP are out.
+- [`docs/SANDBOX.md`](./docs/SANDBOX.md) — dev-sandbox runbook: token locations, seed guidance, smoke check.
 - [`docs/WEBHOOKS.md`](./docs/WEBHOOKS.md) — verification, freshness-only handling, 90-day key rotation.
 - [`docs/EVENTS-BACKFILL.md`](./docs/EVENTS-BACKFILL.md) — 28-day cap, never-book-from-event, PAT auth note.
 
