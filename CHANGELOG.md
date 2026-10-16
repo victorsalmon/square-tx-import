@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Booking gates with counted skips (see `docs/BOOKABLE-MATRIX.md` for the
+  full bookable-vs-excluded matrix):
+  - All-zero skip: adapted records with gross = tax = fee = refunded = net =
+    0 (no refund linkage) are skipped as `zero-value` — reported via
+    `importSalesWindowDetailed().stats.zeroValueSkipped` and
+    `backfillSalesFromEvents().counts.zeroValueSkipped`. A fully-refunded
+    sale (`refundedCents > 0`) still books.
+  - Paid/closed gate: order rows book only with a linked successful
+    (`COMPLETED`, or absent-status) payment — `unpaid-order` skip otherwise,
+    with failed payments excluded from the order's fee/refund sums;
+    payment-only rows book only when the payment itself is successful —
+    `failed-payment` skip otherwise (failed payments never book, including
+    `FAILED`/`CANCELED`/`APPROVED`). New pure predicates
+    (`isSuccessfulPayment`, `isBookableOrder`, `isBookablePayment`,
+    `isZeroValueRecord`, `successfulPaymentsOnly`) plus
+    `importSalesWindowDetailed` (counted `records`/`skipped`/`stats`;
+    `importSalesWindow` keeps its records-only signature).
 - `docs/RATE_LIMITS.md`: vendor-verified Square throttling notes (no
   published numeric limits, `429 RATE_LIMITED` shape, exponential backoff +
   jitter, worker-queue and filter/cursor list-loop guidance) plus the host
