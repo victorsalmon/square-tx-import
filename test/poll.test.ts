@@ -126,7 +126,9 @@ describe('importSalesWindow', () => {
     const ordersPort = {
       searchOrders: async () => ({ orders: [order, order], cursor: undefined }),
     };
-    const paymentsPort = { listPayments: async () => ({ payments: [], cursor: undefined }) };
+    // The paid gate requires a linked successful payment for the order to
+    // book; the dedupe assertion is unchanged (two identical order rows → 1).
+    const paymentsPort = { listPayments: async () => ({ payments: [linked], cursor: undefined }) };
     const records = await importSalesWindow(ordersPort, paymentsPort, {
       locationIds: ['loc-1'],
       startAt: '2026-10-14T00:00:00Z',
