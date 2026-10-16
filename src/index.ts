@@ -28,8 +28,17 @@ export {
   fromPaymentOnly,
   reconcilePayoutEntries,
   assertPayoutEntriesBalanced,
+  SUCCESSFUL_PAYMENT_STATUS,
+  FAILED_PAYMENT_STATUSES,
+  isSuccessfulPayment,
+  hasSuccessfulPayment,
+  successfulPaymentsOnly,
+  isBookableOrder,
+  isBookablePayment,
+  isZeroValueRecord,
   type AdaptOptions,
   type PayoutReconciliation,
+  type SaleSkipReason,
 } from './adapter.js';
 
 export {
@@ -51,10 +60,13 @@ export {
   listAllPayments,
   listAllPayoutEntries,
   importSalesWindow,
+  importSalesWindowDetailed,
   type OrdersSearchPort,
   type PaymentsListPort,
   type PayoutEntriesPort,
   type SalesWindowQuery,
+  type SalesWindowSkipped,
+  type SalesWindowImportResult,
 } from './poll.js';
 
 export {

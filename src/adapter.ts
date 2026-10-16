@@ -262,3 +262,84 @@ export function assertPayoutEntriesBalanced(
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Bookability gates: paid/closed + all-zero skip.
+//
+// The low-level adaptors above (`fromOrderWithPayments`, `fromPaymentOnly`)
+// stay total — they adapt whatever rows they are given so money math is always
+// testable in isolation. The *booking* decision lives here as pure predicates,
+// and the import layers (`poll.ts`, `events-backfill.ts`) enforce them,
+// skipping non-bookable rows with counted reasons. The full state matrix is
+// documented in `docs/BOOKABLE-MATRIX.md`.
+// ---------------------------------------------------------------------------
+
+/** Payment status that counts as money captured. */
+export const SUCCESSFUL_PAYMENT_STATUS = 'COMPLETED' as const;
+
+/**
+ * Explicitly terminal-unsuccessful payment statuses. These never book and
+ * never contribute fees/refunds to an order record. Any other explicit
+ * (non-`COMPLETED`) status — e.g. `APPROVED` (authorized, not captured) or
+ * `PENDING` — is likewise not successful; only `COMPLETED` (or an absent
+ * status, see below) books.
+ */
+export const FAILED_PAYMENT_STATUSES = ['FAILED', 'CANCELED', 'CANCELLED'] as const;
+
+/** Skip reason reported wherever an import layer reports counts. */
+export type SaleSkipReason = 'unpaid-order' | 'failed-payment' | 'zero-value';
+
+/**
+ * True when a payment counts as money captured: `status` is `COMPLETED`
+ * (case-insensitive). An absent (`null`/`undefined`/empty) status is treated
+ * as successful for backward compatibility — rows produced before status was
+ * surfaced carry no status and must keep booking. Every other explicit status
+ * (`FAILED`, `CANCELED`/`CANCELLED`, `APPROVED`, `PENDING`, …) is not
+ * successful.
+ */
+export function isSuccessfulPayment(payment: SquarePaymentRow): boolean {
+  const raw = payment.status;
+  if (raw == null || (typeof raw === 'string' && raw.trim() === '')) return true;
+  return String(raw).trim().toUpperCase() === SUCCESSFUL_PAYMENT_STATUS;
+}
+
+/** True when the list contains at least one {@link isSuccessfulPayment}. */
+export function hasSuccessfulPayment(payments: SquarePaymentRow[]): boolean {
+  return payments.some(isSuccessfulPayment);
+}
+
+/** Only the successful payments of the list (fee/refund contributors). */
+export function successfulPaymentsOnly(payments: SquarePaymentRow[]): SquarePaymentRow[] {
+  return payments.filter(isSuccessfulPayment);
+}
+
+/**
+ * True when an order row may book: at least one linked payment is
+ * successful. Orders with no linked successful payment (none fetched, all
+ * failed/canceled, or only authorized-not-captured) do not book.
+ */
+export function isBookableOrder(linkedPayments: SquarePaymentRow[]): boolean {
+  return hasSuccessfulPayment(linkedPayments);
+}
+
+/** True when a lone payment row may book payment-only: it is successful. */
+export function isBookablePayment(payment: SquarePaymentRow): boolean {
+  return isSuccessfulPayment(payment);
+}
+
+/**
+ * True when a finished record carries no money at all: gross, tax, fee,
+ * refunded, and net are all zero. Such rows are Square $0 placeholders
+ * (e.g. $0 draft orders, $0 verification payments) with no refund linkage —
+ * a fully-refunded sale keeps `refundedCents > 0` and is NOT zero-value, so
+ * it still books (negative net).
+ */
+export function isZeroValueRecord(record: SalesRecord): boolean {
+  return (
+    record.grossCents === 0 &&
+    record.taxCents === 0 &&
+    record.feeCents === 0 &&
+    record.refundedCents === 0 &&
+    record.netCents === 0
+  );
+}
