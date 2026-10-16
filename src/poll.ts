@@ -11,7 +11,12 @@
 import {
   fromOrderWithPayments,
   fromPaymentOnly,
+  isBookableOrder,
+  isBookablePayment,
+  isZeroValueRecord,
+  successfulPaymentsOnly,
   type AdaptOptions,
+  type SaleSkipReason,
 } from './adapter.js';
 import type {
   SalesRecord,
@@ -111,10 +116,15 @@ export interface SalesWindowQuery {
  * payments (grouped by `payment.orderId`), and adapt leftover payments
  * (no linked order row in this window) payment-only. Dedupes by `externalId`.
  *
- * Only orders with a usable date (`closed_at`, else `created_at`) are booked;
- * open orders outside the window surface as payment-only rows when their
- * payments fall inside it — the `externalId` scheme keeps both sides deduped
- * on re-import.
+ * Booking gates (see `docs/BOOKABLE-MATRIX.md`):
+ * - An order books ONLY with at least one linked **successful** (`COMPLETED`,
+ *   or absent-status) payment; failed/canceled/authorized-only payments never
+ *   contribute fees/refunds to the order record.
+ * - A leftover payment books payment-only ONLY when it is successful.
+ * - An adapted record with no money at all (gross = tax = fee = refunded =
+ *   net = 0) is skipped as `zero-value`.
+ * Skipped rows are counted in the detailed result; {@link importSalesWindow}
+ * returns the booked records only.
  */
 export async function importSalesWindow(
   orders: OrdersSearchPort,
@@ -122,6 +132,39 @@ export async function importSalesWindow(
   query: SalesWindowQuery,
   opts?: AdaptOptions
 ): Promise<SalesRecord[]> {
+  return (await importSalesWindowDetailed(orders, payments, query, opts)).records;
+}
+
+/** One skipped row in a window import. */
+export interface SalesWindowSkipped {
+  /** `order:<id>` or `payment:<id>` — the row that did not book. */
+  externalId: string;
+  reason: SaleSkipReason;
+}
+
+/** Counted outcome of a window import. */
+export interface SalesWindowImportResult {
+  records: SalesRecord[];
+  skipped: SalesWindowSkipped[];
+  stats: {
+    booked: number;
+    zeroValueSkipped: number;
+    unpaidOrderSkipped: number;
+    failedPaymentSkipped: number;
+  };
+}
+
+/**
+ * Window import with counted skips. Same booking behaviour as
+ * {@link importSalesWindow}, plus the per-reason `skipped` list and `stats`
+ * (notably `zeroValueSkipped`).
+ */
+export async function importSalesWindowDetailed(
+  orders: OrdersSearchPort,
+  payments: PaymentsListPort,
+  query: SalesWindowQuery,
+  opts?: AdaptOptions
+): Promise<SalesWindowImportResult> {
   const [orderRows, paymentRows] = await Promise.all([
     listAllOrders(orders, {
       locationIds: query.locationIds,
@@ -150,30 +193,62 @@ export async function importSalesWindow(
   }
 
   const records: SalesRecord[] = [];
+  const skipped: SalesWindowSkipped[] = [];
   const seen = new Set<string>();
+  const stats = { booked: 0, zeroValueSkipped: 0, unpaidOrderSkipped: 0, failedPaymentSkipped: 0 };
   const push = (r: SalesRecord): void => {
     if (seen.has(r.externalId)) return;
+    if (isZeroValueRecord(r)) {
+      seen.add(r.externalId);
+      skipped.push({ externalId: r.externalId, reason: 'zero-value' });
+      stats.zeroValueSkipped += 1;
+      return;
+    }
     seen.add(r.externalId);
     records.push(r);
+    stats.booked += 1;
   };
 
   const knownOrderIds = new Set(orderRows.map((o) => o.id).filter((id): id is string => Boolean(id)));
   for (const order of orderRows) {
     if (!order.id) continue;
-    push(fromOrderWithPayments(order, byOrderId.get(order.id) ?? [], opts));
+    const linked = byOrderId.get(order.id) ?? [];
+    // Paid gate: an order books only with a linked successful payment.
+    // Failed payments never contribute fees/refunds — adapt with the
+    // successful subset only.
+    if (!isBookableOrder(linked)) {
+      const externalId = `order:${order.id}`;
+      if (seen.has(externalId)) continue;
+      seen.add(externalId);
+      skipped.push({ externalId, reason: 'unpaid-order' });
+      stats.unpaidOrderSkipped += 1;
+      continue;
+    }
+    push(fromOrderWithPayments(order, successfulPaymentsOnly(linked), opts));
   }
   // Payments whose order row was not in this window (or is absent entirely)
-  // still book — payment-only — so no sale is silently dropped.
+  // still book — payment-only — so no sale is silently dropped, provided the
+  // payment itself is successful.
+  const pushPaymentOnly = (p: SquarePaymentRow): void => {
+    if (!p.id) return;
+    if (!isBookablePayment(p)) {
+      const externalId = `payment:${p.id}`;
+      if (seen.has(externalId)) return;
+      seen.add(externalId);
+      skipped.push({ externalId, reason: 'failed-payment' });
+      stats.failedPaymentSkipped += 1;
+      return;
+    }
+    push(fromPaymentOnly(p, opts));
+  };
   for (const [orderId, group] of byOrderId) {
     if (knownOrderIds.has(orderId)) continue;
     for (const p of group) {
-      if (!p.id) continue;
-      push(fromPaymentOnly(p, opts));
+      pushPaymentOnly(p);
     }
   }
   for (const p of unlinked) {
-    if (!p.id) continue;
-    push(fromPaymentOnly(p, opts));
+    pushPaymentOnly(p);
   }
-  return records;
+  return { records, skipped, stats };
 }

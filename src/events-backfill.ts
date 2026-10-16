@@ -22,7 +22,16 @@
  * `docs/EVENTS-BACKFILL.md`.
  */
 
-import { fromOrderWithPayments, fromPaymentOnly, type AdaptOptions } from './adapter.js';
+import {
+  fromOrderWithPayments,
+  fromPaymentOnly,
+  isBookableOrder,
+  isBookablePayment,
+  isZeroValueRecord,
+  successfulPaymentsOnly,
+  type AdaptOptions,
+  type SaleSkipReason,
+} from './adapter.js';
 import type { SalesRecord, SquareOrderRow, SquarePaymentRow } from './types.js';
 
 /** Trailing retention of the Events API search index, in days. */
@@ -148,6 +157,22 @@ export interface BackfillResult {
   records: SalesRecord[];
   /** Events that produced no record (unknown kind, missing entity, gone). */
   skipped: Array<{ eventId: string; reason: string }>;
+  /** Counted outcome, including the booking-gate skips. */
+  counts: {
+    booked: number;
+    skipped: number;
+    zeroValueSkipped: number;
+    unpaidOrderSkipped: number;
+    failedPaymentSkipped: number;
+  };
+}
+
+/** Booking-gate skip reasons that carry a `SaleSkipReason` (vs. plumbing). */
+function tallySkipReason(reason: string): SaleSkipReason | null {
+  if (reason === 'zero-value' || reason === 'unpaid-order' || reason === 'failed-payment') {
+    return reason;
+  }
+  return null;
 }
 
 /**
@@ -160,6 +185,16 @@ export interface BackfillResult {
  * are reported as skipped with reason `payout-requires-entries` — payouts
  * reconcile via `ListPayoutEntries` (`poll.ts` + `adapter.ts`), not via a
  * single row. Dedupes by `externalId`.
+ *
+ * Booking gates (see `docs/BOOKABLE-MATRIX.md`):
+ * - A payment event books ONLY when the canonical payment is successful
+ *   (`failed-payment` skip otherwise — failed payments never book).
+ * - An order event books ONLY with a linked successful payment, evaluated
+ *   through `opts.getOrderPayments` when provided (`unpaid-order` skip
+ *   otherwise; failed linked payments never contribute fees/refunds). When
+ *   `getOrderPayments` is absent the linkage is unknown and the order books
+ *   — pass it for full paid-gate enforcement.
+ * - An adapted record with no money at all is skipped as `zero-value`.
  */
 export async function backfillSalesFromEvents(
   events: BackfillEvent[],
@@ -169,18 +204,44 @@ export async function backfillSalesFromEvents(
   const records: SalesRecord[] = [];
   const skipped: BackfillResult['skipped'] = [];
   const seen = new Set<string>();
+  const counts: BackfillResult['counts'] = {
+    booked: 0,
+    skipped: 0,
+    zeroValueSkipped: 0,
+    unpaidOrderSkipped: 0,
+    failedPaymentSkipped: 0,
+  };
+  const skip = (eventId: string, reason: string): void => {
+    skipped.push({ eventId, reason });
+    counts.skipped += 1;
+    const gate = tallySkipReason(reason);
+    if (gate === 'zero-value') counts.zeroValueSkipped += 1;
+    else if (gate === 'unpaid-order') counts.unpaidOrderSkipped += 1;
+    else if (gate === 'failed-payment') counts.failedPaymentSkipped += 1;
+  };
+  const book = (record: SalesRecord, eventId: string): void => {
+    if (seen.has(record.externalId)) return;
+    if (isZeroValueRecord(record)) {
+      seen.add(record.externalId);
+      skip(eventId, 'zero-value');
+      return;
+    }
+    seen.add(record.externalId);
+    records.push(record);
+    counts.booked += 1;
+  };
 
   for (const event of events) {
     if (!event.entityId) {
-      skipped.push({ eventId: event.eventId, reason: 'no-entity-id' });
+      skip(event.eventId, 'no-entity-id');
       continue;
     }
     if (event.entityKind === 'unknown') {
-      skipped.push({ eventId: event.eventId, reason: 'unknown-entity-kind' });
+      skip(event.eventId, 'unknown-entity-kind');
       continue;
     }
     if (event.entityKind === 'payout') {
-      skipped.push({ eventId: event.eventId, reason: 'payout-requires-entries' });
+      skip(event.eventId, 'payout-requires-entries');
       continue;
     }
     try {
@@ -189,29 +250,35 @@ export async function backfillSalesFromEvents(
           ? await (async (): Promise<SalesRecord | null> => {
               const order = await fetchers.getOrder(event.entityId as string);
               if (!order) return null;
-              const linked = opts?.getOrderPayments
-                ? await opts.getOrderPayments(event.entityId as string)
-                : [];
-              return fromOrderWithPayments(order, linked, opts);
+              if (!opts?.getOrderPayments) {
+                return fromOrderWithPayments(order, [], opts);
+              }
+              const linked = await opts.getOrderPayments(event.entityId as string);
+              if (!isBookableOrder(linked)) {
+                skip(event.eventId, 'unpaid-order');
+                return null;
+              }
+              return fromOrderWithPayments(order, successfulPaymentsOnly(linked), opts);
             })()
           : await (async (): Promise<SalesRecord | null> => {
               const payment = await fetchers.getPayment(event.entityId as string);
               if (!payment) return null;
+              if (!isBookablePayment(payment)) {
+                skip(event.eventId, 'failed-payment');
+                return null;
+              }
               return fromPaymentOnly(payment, opts);
             })();
       if (!record) {
-        skipped.push({ eventId: event.eventId, reason: 'canonical-row-missing' });
+        if (!skipped.some((s) => s.eventId === event.eventId)) {
+          skip(event.eventId, 'canonical-row-missing');
+        }
         continue;
       }
-      if (seen.has(record.externalId)) continue;
-      seen.add(record.externalId);
-      records.push(record);
+      book(record, event.eventId);
     } catch (err) {
-      skipped.push({
-        eventId: event.eventId,
-        reason: `adapt-failed: ${err instanceof Error ? err.message : String(err)}`,
-      });
+      skip(event.eventId, `adapt-failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  return { records, skipped };
+  return { records, skipped, counts };
 }
