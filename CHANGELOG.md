@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/RATE_LIMITS.md`: vendor-verified Square throttling notes (no
+  published numeric limits, `429 RATE_LIMITED` shape, exponential backoff +
+  jitter, worker-queue and filter/cursor list-loop guidance) plus the host
+  checklist. `Retry-After` presence on the sales APIs and any fixed QPS
+  figures are marked UNVERIFIED (undocumented by the vendor).
 - Dev-sandbox readiness: `examples/sandbox-smoke.mjs` (env-only creds,
   sandbox-enforced, read-only `SearchOrders` + `ListPayments` wiring check
   over a small trailing window, projected-lines-only output) and

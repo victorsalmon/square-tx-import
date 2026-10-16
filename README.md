@@ -112,6 +112,7 @@ SQUARE_ACCESS_TOKEN=... SQUARE_WEBHOOK_URL=https://you.example/hooks/square \
 - [`docs/SANDBOX.md`](./docs/SANDBOX.md) — dev-sandbox runbook: token locations, seed guidance, smoke check.
 - [`docs/WEBHOOKS.md`](./docs/WEBHOOKS.md) — verification, freshness-only handling, 90-day key rotation.
 - [`docs/EVENTS-BACKFILL.md`](./docs/EVENTS-BACKFILL.md) — 28-day cap, never-book-from-event, PAT auth note.
+- [`docs/RATE_LIMITS.md`](./docs/RATE_LIMITS.md) — throttling, `Retry-After`, list-loop guidance.
 
 ---
 
