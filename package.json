@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Import Square sales records for bookkeeping: Orders + Payments + Payouts adaption, webhook freshness signals, and Events-API missed-delivery backfill. No Invoices API, no Reporting API, no MCP runtime.",
   "license": "MIT",
   "type": "module",
